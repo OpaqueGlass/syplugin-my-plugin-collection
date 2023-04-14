@@ -20,8 +20,6 @@
 
 请前往[github仓库](https://github.com/OpaqueGlass/syplugin-my-plugin-collection)反馈问题。
 
-> 同开发者的其他思源笔记插件/挂件：[（只有两个插件的合集）](https://github.com/OpaqueGlass/syplugin-my-plugin-collection)、[listChildDocs（文档目录挂件）](https://github.com/OpaqueGlass/listChildDocs)、[progressBarT（进度条挂件）](https://github.com/OpaqueGlass/progressBarT-sywidget)
-
 ### 参考&感谢
 
 | 开发者/项目                                                  | 描述                                                         | 说明                         |

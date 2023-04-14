@@ -22,8 +22,6 @@ Compared with the theme HBuilderX-Light in this function implementation, this pl
 
 Please go to [github repository](https://github.com/OpaqueGlass/syplugin-my-plugin-collection) to report problems.
 
-> Other Siyuan Note plug-ins/widgets from the same developer: [(a collection of only two plugins)](https://github.com/OpaqueGlass/syplugin-my-plugin-collection)、[listChildDocs (Document directory widget)](https://github.com/OpaqueGlass/listChildDocs)、[progressBarT (progress bar widget)](https://github.com/OpaqueGlass/progressBarT-sywidget)
-
 ### Reference & Thanks
 
 | Developer/Project                                            | Description                                                  | Illustration                                                 |
