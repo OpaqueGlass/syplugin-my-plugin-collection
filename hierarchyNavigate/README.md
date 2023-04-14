@@ -1,5 +1,7 @@
 ## hierarchyNavigate 文档标题下添加上下层文档导航
 
+[English](https://github.com/OpaqueGlass/syplugin-my-plugin-collection/blob/main/hierarchyNavigate/README_english.md)
+
 > 当前版本：v0.1.0
 
 ### 快速开始

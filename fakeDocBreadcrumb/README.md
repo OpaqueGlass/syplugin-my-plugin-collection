@@ -1,5 +1,7 @@
 ## fakeDocBreadcrumb （伪）文档面包屑
 
+[English](https://github.com/OpaqueGlass/syplugin-my-plugin-collection/blob/main/fakeDocBreadcrumb/README_english.md)
+
 > 当前版本：v0.0.1 
 
 ### 快速开始
