@@ -231,14 +231,14 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
     htmlElem.style.fontSize = g_fontSize;
     let parentElem = document.createElement("div");
     parentElem.setAttribute("id", "parent-doc-container");
-    parentElem.style.borderBottom = "1px dotted gray";
+    parentElem.style.cssText = "margin: 0px 6px;";
     let parentElemInnerText = `<span class="heading-docs-indicator">${language["parent_nodes"]}</span>`;
     for (let doc of parentDoc) {
-        parentElemInnerText += `<a data-id="${doc.id}" class="refLinks childDocLinks" style="color: var(--b3-protyle-inline-link-color)" >${doc.content}</a>`;
+        parentElemInnerText += `<a data-id="${doc.id}" class="refLinks childDocLinks b3-chip b3-chip--middle b3-chip--pointer" style="color: var(--b3-protyle-inline-link-color);margin-bottom: 5px;" >${doc.content}</a>`;
     }
     let siblingElem = document.createElement("div");
     siblingElem.setAttribute("id", "parent-doc-container");
-    siblingElem.style.borderBottom = "1px dotted gray";
+    siblingElem.style.cssText = "margin: 0px 6px;";
     let siblingElemInnerText = `<span class="heading-docs-indicator">${language["sibling_nodes"]}</span>`;
 
     if (parentElemInnerText != `<span class="heading-docs-indicator">${language["parent_nodes"]}</span>`) {
@@ -248,7 +248,7 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
         
         for (let doc of siblingDoc) {
             let emojiStr = getEmojiHtmlStr(doc.icon, true);
-            siblingElemInnerText += `<a class="refLinks childDocLinks" data-type='block-ref' data-subtype="d" style="color: var(--b3-protyle-inline-link-color)" data-id="${doc.id}">${emojiStr}${doc.name.substring(0, doc.name.length - 3)}</a>   `;
+            siblingElemInnerText += `<a class="refLinks childDocLinks b3-chip b3-chip--middle b3-chip--pointer" data-type='block-ref' data-subtype="d" style="color: var(--b3-protyle-inline-link-color);margin-bottom: 5px;" data-id="${doc.id}">${emojiStr}${doc.name.substring(0, doc.name.length - 3)}</a>   `;
         }
         if (siblingElemInnerText != `<span class="heading-docs-indicator">${language["sibling_nodes"]}</span>`) {
             siblingElem.innerHTML = siblingElemInnerText;
@@ -261,11 +261,11 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
 
     let childElem = document.createElement("div");
     childElem.setAttribute("id", "parent-doc-container");
-    childElem.style.borderBottom = "1px solid gray";
+    childElem.style.cssText = "margin: 0px 6px;";
     let childElemInnerText = `<span class="heading-docs-indicator">${language["child_nodes"]}</span>`;
     for (let doc of childDoc) {
         let emojiStr = getEmojiHtmlStr(doc.icon, true);
-        childElemInnerText += `<a class="refLinks childDocLinks" data-type='block-ref' data-subtype="d" style="color: var(--b3-protyle-inline-link-color)" data-id="${doc.id}">${emojiStr}${doc.name.substring(0, doc.name.length - 3)}</a>   `;
+        childElemInnerText += `<a class="refLinks childDocLinks b3-chip b3-chip--middle b3-chip--pointer" data-type='block-ref' data-subtype="d" style="color: var(--b3-protyle-inline-link-color);margin-bottom: 5px;" data-id="${doc.id}">${emojiStr}${doc.name.substring(0, doc.name.length - 3)}</a>   `;
     }
     if (childElemInnerText != `<span class="heading-docs-indicator">${language["child_nodes"]}</span>`) {
         childElem.innerHTML = childElemInnerText;
