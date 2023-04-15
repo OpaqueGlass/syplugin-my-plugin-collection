@@ -234,7 +234,7 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
     parentElem.style.cssText = "margin: 0px 6px;";
     let parentElemInnerText = `<span class="heading-docs-indicator">${language["parent_nodes"]}</span>`;
     for (let doc of parentDoc) {
-        parentElemInnerText += `<a data-id="${doc.id}" class="refLinks childDocLinks b3-chip b3-chip--middle b3-chip--pointer" style="color: var(--b3-protyle-inline-link-color);margin-bottom: 5px;" >${doc.content}</a>`;
+        parentElemInnerText += `<a data-id="${doc.id}" class="refLinks childDocLinks b3-chip b3-chip--middle b3-chip--pointer" data-type='block-ref' style="color: var(--b3-protyle-inline-link-color);margin-bottom: 5px;" >${doc.content}</a>`;
     }
     let siblingElem = document.createElement("div");
     siblingElem.setAttribute("id", "parent-doc-container");
