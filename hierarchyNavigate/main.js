@@ -34,13 +34,55 @@ class HierachyNavigatePlugin extends Plugin {
     }
 
     async onload() {
+        let PLUGIN_SETTING = [
+            new SettingProperty("font_size", ""),
+            new SettingProperty("")
+        
+        ];
+        // 设置语言（已在constructor完成）
+
+        // 读取配置
+        const settingCache = await this.loadStorage("settings.json");
+        // 解析并载入配置
+        let settingData = JSON.parse(settingCache);
+        Object.assign(g_setting, settingData);
+        // 生成配置页面
+        this.registerSettingRender((el) => {
+            const hello = document.createElement('div');
+            const settingForm = document.createElement("form");
+            settingForm.setAttribute("name", CONSTANTS.PLUGIN_NAME);
+            settingForm.innerHTML = generateSettingPanelHTML([
+                new SettingProperty("fontSize", "NUMBER", [0, 1024], g_setting.fontSize),
+                new SettingProperty("sibling", "SWITCH", null, g_setting.sibling),
+                new SettingProperty("docMaxNum", "NUMBER", [0, 1024], g_setting.docMaxNum),
+                new SettingProperty("nameMaxLength", "NUMBER", [0, 1024], g_setting.nameMaxLength),
+                new SettingProperty("icon", "SELECT", [
+                    {name: "不显示", value:0},
+                    {name: "仅自定义", value:1},
+                    {name: "显示全部",value:2}], g_setting.icon),
+                new SettingProperty("docLinkClass", "TEXTAREA", null, g_setting.docLinkClass)
+            ]);
+
+            hello.appendChild(settingForm);
+            el.appendChild(hello);
+            hello.addEventListener('change', (event) => {
+                // this.writeStorage('hello.txt', 'world' + Math.random().toFixed(2));
+                console.log('CHANGED');
+                let uiSettings = loadUISettings(settingForm);
+                clearTimeout(g_saveTimeout);
+                g_saveTimeout = setTimeout(()=>{this.writeStorage(`settings.json`, JSON.stringify(uiSettings));console.log("SAVED");}, CONSTANTS.SAVE_TIMEOUT)
+                Object.assign(g_setting, uiSettings);
+            });
+        });
+        // 开始运行
         setObserver();
-        console.log("PLUGIN_API", siyuan, serverApi);
+        setStyle()
     }
 
     onunload() {
         this.el && this.el.remove();
         removeObserver();
+        removeStyle();
     }
 }
 
@@ -53,30 +95,63 @@ module.exports = {
  */
 let g_switchTabObserver; // 页签切换与新建监视器
 let g_windowObserver; // 窗口监视器
-let CONSTANTS = {
+const CONSTANTS = {
     RANDOM_DELAY: 300, // 插入挂件的延迟最大值，300（之后会乘以10）对应最大延迟3秒
     OBSERVER_RANDOM_DELAY: 500, // 插入链接、引用块和自定义时，在OBSERVER_RANDOM_DELAY_ADD的基础上增加延时，单位毫秒
     OBSERVER_RANDOM_DELAY_ADD: 100, // 插入链接、引用块和自定义时，延时最小值，单位毫秒
     OBSERVER_RETRY_INTERVAL: 1000, // 找不到页签时，重试间隔
+    STYLE_ID: "hierarchy-navigate-plugin-style",
+    ICON_ALL: 2,
+    ICON_NONE: 0,
+    ICON_CUSTOM_ONLY: 1,
+    PLUGIN_NAME: "og_hierachy_navigate",
+    SAVE_TIMEOUT: 900,
 }
 let g_observerRetryInterval;
 let g_observerStartupRefreshTimeout;
 let g_TIMER_LABLE_NAME_COMPARE = "文档栏插件";
 let g_tabbarElement = undefined;
+let g_saveTimeout;
 let g_fontSize = "12px";
 let g_isMobile = false;
 let g_setting = {
     fontSize: 12,
-    parentBoxStyle: "",
-    childBoxStyle: "",
-    childLinkClass: "b3-chip b3-chip--middle b3-chip--pointer",
-    icon: 0, // 0禁用 1只显示设置图标的 2显示所有
+    parentBoxCSS: "",
+    siblingBoxCSS: "",
+    childBoxCSS: "",
+    docLinkCSS: "",
+    docLinkClass: "b3-chip b3-chip--middle b3-chip--pointer",
+    icon: CONSTANTS.ICON_CUSTOM_ONLY, // 0禁用 1只显示设置图标的 2显示所有
     sibling: false, // 为true则在父文档不存在时清除
-    nameMaxLength: 0,// 最长文档名称 0不限制
-    docMaxNum: 0, // 最大文档显示数量 0不限制
+    nameMaxLength: 20,// 文档名称最大长度 0不限制
+    docMaxNum: 512, // API最大文档显示数量 0不限制（请求获取全部子文档），建议设置数量大于32
+    limitPopUpScope: false,// 限制浮窗触发范围
+    linkDivider: "◈",
 };
-
-/* API */
+class SettingProperty {
+    id;
+    simpId;
+    name;
+    desp;
+    type;
+    limit;
+    value;
+    /**
+     * 设置属性对象
+     * @param {*} id 唯一定位id
+     * @param {*} type 设置项类型
+     * @param {*} limit 限制
+     */
+    constructor(id, type, limit, value) {
+        this.id = `${CONSTANTS.PLUGIN_NAME}_${id}`;
+        this.simpId = id;
+        this.name = language[`setting_${id}_name`];
+        this.desp = language[`setting_${id}_desp`];
+        this.type = type;
+        this.limit = limit;
+        this.value = value;
+    }
+}
 
 
 /**
@@ -195,10 +270,10 @@ async function main(targets) {
 async function getDocumentRelations(docId) {
     let sqlResult = await serverApi.sql(`SELECT * FROM blocks WHERE id = "${docId}"`);
      // 获取父文档
-    const parentDoc = await getParentDocument(docId, sqlResult);
+    let parentDoc = await getParentDocument(docId, sqlResult);
     
     // 获取子文档
-    const childDocs = await getChildDocuments(docId, sqlResult);
+    let childDocs = await getChildDocuments(docId, sqlResult);
 
     let noParentFlag = false;
     if (parentDoc.length == 0) {
@@ -206,7 +281,15 @@ async function getDocumentRelations(docId) {
     }
     console.log(parentDoc);
     // 获取同级文档
-    const siblingDocs = await getSiblingDocuments(docId, parentDoc, sqlResult, noParentFlag);
+    let siblingDocs = await getSiblingDocuments(docId, parentDoc, sqlResult, noParentFlag);
+
+    // 超长部分裁剪
+    if (childDocs.length > g_setting.docMaxNum) {
+        childDocs = childDocs.slice(0, g_setting.docMaxNum);
+    }
+    if (siblingDocs.length > g_setting.docMaxNum) {
+        siblingDocs = siblingDocs.slice(0, g_setting.docMaxNum);
+    }
 
     // 返回结果
     return [ parentDoc, childDocs, siblingDocs ];
@@ -220,12 +303,12 @@ async function getParentDocument(docId, sqlResult) {
 }
 
 async function getChildDocuments(docId, sqlResult) {
-    let childDocs = await listDocsByPath(sqlResult[0].path, sqlResult[0].box, );
+    let childDocs = await listDocsByPath({path: sqlResult[0].path, notebook: sqlResult[0].box});
     return childDocs.files;
 }
 
 async function getSiblingDocuments(docId, parentSqlResult, sqlResult, noParentFlag) {
-    let siblingDocs = await listDocsByPath(noParentFlag ? "/" : parentSqlResult[0].path, sqlResult[0].box);
+    let siblingDocs = await listDocsByPath({path: noParentFlag ? "/" : parentSqlResult[0].path, notebook: sqlResult[0].box});
     return siblingDocs.files;
 }
 
@@ -235,30 +318,27 @@ async function getSiblingDocuments(docId, parentSqlResult, sqlResult, noParentFl
  * 生成插入文本
  */
 function generateText(parentDoc, childDoc, siblingDoc, docId) {
-    let STYLE = `style="margin-right: 3px; "`;
     let htmlElem = document.createElement("div");
     htmlElem.setAttribute("id", "heading-docs-container");
-    htmlElem.style.fontSize = g_fontSize;
+    htmlElem.style.fontSize = `${g_setting.fontSize}px`;
     let parentElem = document.createElement("div");
     parentElem.setAttribute("id", "parent-doc-container");
-    parentElem.style.cssText = "margin: 0px 6px;";
+    parentElem.style.padding = "0px 6px";
     let parentElemInnerText = `<span class="heading-docs-indicator">${language["parent_nodes"]}</span>`;
     for (let doc of parentDoc) {
-        parentElemInnerText += `<a data-id="${doc.id}" class="refLinks childDocLinks b3-chip b3-chip--middle b3-chip--pointer" data-type='block-ref' style="color: var(--b3-protyle-inline-link-color);margin-bottom: 5px;" >${doc.content}</a>`;
+        parentElemInnerText += docLinkGenerator(doc);
     }
     let siblingElem = document.createElement("div");
     siblingElem.setAttribute("id", "parent-doc-container");
-    siblingElem.style.cssText = "margin: 0px 6px;";
+    siblingElem.style.padding = "0px 6px";
     let siblingElemInnerText = `<span class="heading-docs-indicator">${language["sibling_nodes"]}</span>`;
 
     if (parentElemInnerText != `<span class="heading-docs-indicator">${language["parent_nodes"]}</span>`) {
         parentElem.innerHTML = parentElemInnerText;
         htmlElem.appendChild(parentElem);
-    }else{
-        
+    }else if (g_setting.sibling){
         for (let doc of siblingDoc) {
-            let emojiStr = getEmojiHtmlStr(doc.icon, true);
-            siblingElemInnerText += `<a class="refLinks childDocLinks b3-chip b3-chip--middle b3-chip--pointer" data-type='block-ref' data-subtype="d" style="color: var(--b3-protyle-inline-link-color);margin-bottom: 5px;" data-id="${doc.id}">${emojiStr}${doc.name.substring(0, doc.name.length - 3)}</a>   `;
+            siblingElemInnerText += docLinkGenerator(doc);
         }
         if (siblingElemInnerText != `<span class="heading-docs-indicator">${language["sibling_nodes"]}</span>`) {
             siblingElem.innerHTML = siblingElemInnerText;
@@ -267,15 +347,17 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
             siblingElem.innerHTML = siblingElemInnerText + language["none"];
             htmlElem.appendChild(siblingElem);
         }
+    }else{
+        parentElem.innerHTML = parentElemInnerText + language["none"];
+        htmlElem.appendChild(parentElem);
     }
 
     let childElem = document.createElement("div");
     childElem.setAttribute("id", "parent-doc-container");
-    childElem.style.cssText = "margin: 0px 6px;";
+    childElem.style.padding = "0px 6px";
     let childElemInnerText = `<span class="heading-docs-indicator">${language["child_nodes"]}</span>`;
     for (let doc of childDoc) {
-        let emojiStr = getEmojiHtmlStr(doc.icon, true);
-        childElemInnerText += `<a class="refLinks childDocLinks b3-chip b3-chip--middle b3-chip--pointer" data-type='block-ref' data-subtype="d" style="color: var(--b3-protyle-inline-link-color);margin-bottom: 5px;" data-id="${doc.id}">${emojiStr}${doc.name.substring(0, doc.name.length - 3)}</a>   `;
+        childElemInnerText += docLinkGenerator(doc);
     }
     if (childElemInnerText != `<span class="heading-docs-indicator">${language["child_nodes"]}</span>`) {
         childElem.innerHTML = childElemInnerText;
@@ -287,6 +369,22 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
 
     console.log(parentElemInnerText, childElemInnerText, siblingElemInnerText);
     return htmlElem;
+    function docLinkGenerator(doc) {
+        let emojiStr = getEmojiHtmlStr(doc.icon, doc?.subFileCount != 0);
+        let docName = isValidStr(doc?.name) ? doc.name.substring(0, doc.name.length - 3) : doc.content;
+        // 文件名长度限制
+        if (docName.length > g_setting.nameMaxLength && g_setting.nameMaxLength != 0) docName = docName.substring(0, g_setting.nameMaxLength) + "...";
+        let result = `<a class="refLinks docLinks ${g_setting.docLinkClass == null ? "":g_setting.docLinkClass}"
+         data-type='block-ref'
+         data-subtype="d"
+         style="color: var(--b3-protyle-inline-link-color);
+         margin-bottom: 3px; font-size: ${g_setting.fontSize}px; margin-right: 10px"
+         data-id="${doc.id}">
+            ${emojiStr}${docName}
+        </a>`
+
+        return result;
+    }
 }
 
 function setAndApply(htmlElem, docId) {
@@ -299,7 +397,6 @@ function setAndApply(htmlElem, docId) {
         window.document.querySelector(`.fn__flex-column .protyle-background[data-node-id="${docId}"]`).insertAdjacentElement("afterend", htmlElem);
         [].forEach.call(window.document.querySelectorAll(`#heading-docs-container  a.refLinks`), (elem)=>{
             elem.addEventListener("click", openRefLink);
-            elem.style.marginRight = "10px";
         });
         return;
     }
@@ -312,6 +409,25 @@ function setAndApply(htmlElem, docId) {
     });
 }
 
+function setStyle() {
+    const head = document.getElementsByTagName('head')[0];
+    const style = document.createElement('style');
+    style.setAttribute("id", CONSTANTS.STYLE_ID);
+    style.innerHTML = `
+    #heading-docs-container span.docLinks:hover {
+        cursor: pointer;
+        opacity: .86;
+        text-decoration: underline;
+    }
+
+    `;
+    head.appendChild(style);
+}
+
+function removeStyle() {
+    document.getElementById(CONSTANTS.STYLE_ID)?.remove();
+}
+
 /**
  * 在html中显示文档icon
  * @param {*} iconString files[x].icon
@@ -319,14 +435,15 @@ function setAndApply(htmlElem, docId) {
  * @returns 
  */
 function getEmojiHtmlStr(iconString, hasChild) {
-    if (iconString == undefined || iconString == null) return "";//没有icon属性，不是文档类型，不返回emoji
-    if (iconString == "") return hasChild ? "📑" : "📄";//无icon默认值
+    //没有icon属性，不是文档类型或禁用emoji，则不返回emoji
+    if (iconString == undefined || iconString == null || g_setting.icon == CONSTANTS.ICON_NONE) return g_setting.linkDivider;
+    // 无emoji的处理
+    if (iconString == "" && g_setting.icon == CONSTANTS.ICON_ALL) return hasChild ? "📑" : "📄";//无icon默认值
+    if (iconString == "" && g_setting.icon == CONSTANTS.ICON_CUSTOM_ONLY) return g_setting.linkDivider;
     let result = iconString;
     // emoji地址判断逻辑为出现.，但请注意之后的补全
     if (iconString.indexOf(".") != -1) {
-        // if (!setting.customEmojiEnable) return hasChild ? "📑" : "📄";//禁用自定义emoji时
-        // emoji为网络地址时，不再补全/emojis路径
-        result = `<img class="iconpic" style="width: ${g_fontSize}" src="/emojis/${iconString}"/>`;
+        result = `<img class="iconpic" style="width: ${g_setting.fontSize}px" src="/emojis/${iconString}"/>`;
     } else {
         result = `<span class="emojitext">${emojiIconHandler(iconString, hasChild)}</span>`;
     }
@@ -344,10 +461,7 @@ let emojiIconHandler = function (iconString, hasChild = false) {
         console.error("emoji处理时发生错误", iconString, err);
         return hasChild ? "📑" : "📄";
     }
-
 }
-
-
 
 async function request(url, data) {
     let resData = null;
@@ -368,12 +482,15 @@ async function parseBody(response) {
     return r.code === 0 ? r.data : null;
 }
 
-async function listDocsByPath(path, notebook = undefined, sort = undefined) {
+async function listDocsByPath({path, notebook = undefined, sort = undefined, maxListLength = undefined}) {
     let data = {
         path: path
     };
     if (notebook) data["notebook"] = notebook;
     if (sort) data["sort"] = sort;
+    if (g_setting.docMaxNum != 0) {
+        data["maxListCount"] = g_setting.docMaxNum >= 32 ? g_setting.docMaxNum : 32;
+    } 
     let url = '/api/filetree/listDocsByPath';
     return parseBody(request(url, data));
     //文档hepath与Markdown 内容
@@ -430,7 +547,17 @@ let zh_CN = {
     "parent_nodes": "父：",
     "child_nodes": "子：",
     "sibling_nodes": "兄：",
-    "none": "无"
+    "none": "无",
+    "setting_fontSize_name": "字号",
+    "setting_nameMaxLength_name": "文档名最大长度",
+    "setting_nameMaxLength_desp": "文档名长度超过该值，将被截断，并标注“...”",
+    "setting_docMaxNum_name": "文档最大数量",
+    "setting_docMaxNum_desp": "当子文档或同级文档超过该值时，后续文档将不再显示",
+    "setting_icon_name": "文档图标",
+    "setting_icon_desp": "控制文档图标显示方式",
+    "setting_sibling_name": "父文档为笔记本时，显示同级文档",
+    "setting_docLinkClass_name": "文档链接样式Class",
+    "setting_docLinkClass_desp": "文档链接所属的CSS class，用于套用思源已存在的样式类"
 }
 
 let en_US = {
@@ -440,3 +567,123 @@ let en_US = {
     "none": "N/A"
 }
 let language = zh_CN;
+
+/**
+ * 由需要的设置项生成设置页面
+ * @param {*} settingObject 
+ */
+function generateSettingPanelHTML(settingObjectArray) {
+    let resultHTML = "";
+    for (let oneSettingProperty of settingObjectArray) {
+        let inputElemStr = "";
+        let temp = `
+        <label class="fn__flex b3-label">
+            <div class="fn__flex-1">
+                ${oneSettingProperty.name}
+                <div class="b3-label__text">${oneSettingProperty.desp??""}</div>
+            </div>
+            <span class="fn__space"></span>
+            *#*##*#*
+        </label>
+        `;
+        switch (oneSettingProperty.type) {
+            case "NUMBER": {
+                let min = oneSettingProperty.limit[0];
+                let max = oneSettingProperty.limit[1];
+                inputElemStr = `<input 
+                    class="b3-text-field fn__flex-center fn__size200" 
+                    id="${oneSettingProperty.id}" 
+                    type="number" 
+                    name="${oneSettingProperty.simpId}"
+                    ${min == null || min == undefined ? "":"min=\"" + min + "\""} 
+                    ${max == null || max == undefined ? "":"max=\"" + max + "\""} 
+                    value="${oneSettingProperty.value}">`;
+                break;
+            }
+            case "SELECT": {
+
+                let optionStr = "";
+                for (let option of oneSettingProperty.limit) {
+                    optionStr += `<option value="${option.value}" 
+                    ${option.value == oneSettingProperty.value ? "selected":""}>
+                        ${option.name}
+                    </option>`;
+                }
+                inputElemStr = `<select 
+                    id="${oneSettingProperty.id}" 
+                    name="${oneSettingProperty.simpId}"
+                    class="b3-select fn__flex-center fn__size200">
+                        ${optionStr}
+                    </select>`;
+                break;
+            }
+            case "TEXT": {
+                inputElemStr = `<input class="b3-text-field fn__flex-center fn__size200" id="${oneSettingProperty.id}"></input>`;
+                temp = `
+                <label class="fn__flex b3-label config__item">
+                    <div class="fn__flex-1">
+                        ${oneSettingProperty.name}
+                        <div class="b3-label__text">${oneSettingProperty.desp??""}</div>
+                    </div>
+                    
+                </label>`
+            }
+            case "SWITCH": {
+                inputElemStr = `<input 
+                class="b3-switch fn__flex-center"
+                name="${oneSettingProperty.simpId}"
+                id="${oneSettingProperty.id}" type="checkbox" 
+                ${oneSettingProperty.value?"checked=\"\"":""}></input>
+                `;
+                break;
+            }
+            case "TEXTAREA": {
+                inputElemStr = `<textarea 
+                name="${oneSettingProperty.simpId}"
+                class="b3-text-field fn__block" 
+                id="${oneSettingProperty.id}">${oneSettingProperty.value}</textarea>`;
+                temp = `
+                <label class="b3-label fn__flex">
+                    <div class="fn__flex-1">
+                        ${oneSettingProperty.name}
+                        <div class="b3-label__text">${oneSettingProperty.desp??""}</div>
+                        <div class="fn__hr"></div>
+                        *#*##*#*
+                    </div>
+                </label>`
+                break;
+            }
+        }
+        
+        resultHTML += temp.replace("*#*##*#*", inputElemStr);
+    }
+    console.log(resultHTML);
+    return resultHTML;
+}
+
+/**
+ * 由配置文件读取配置
+ */
+function loadCacheSettings() {
+    // 检索当前页面所有设置项元素
+
+}
+
+/**
+ * 由设置界面读取配置
+ */
+function loadUISettings(formElement) {
+    let data = new FormData(formElement);
+    let result = {};
+    for(const [key, value] of data.entries()) {
+        result[key] = value;
+        if (value == "true") {
+            result[key] = true;
+        }else if (value == "false") {
+            result[key] = false;
+        }else if (!isNaN(value)) {
+            result[key] = parseFloat(value);
+        }
+    }
+    return result;
+}
