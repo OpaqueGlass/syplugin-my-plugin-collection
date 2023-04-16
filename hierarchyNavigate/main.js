@@ -65,6 +65,16 @@ let g_TIMER_LABLE_NAME_COMPARE = "文档栏插件";
 let g_tabbarElement = undefined;
 let g_fontSize = "12px";
 let g_isMobile = false;
+let g_setting = {
+    fontSize: 12,
+    parentBoxStyle: "",
+    childBoxStyle: "",
+    childLinkClass: "b3-chip b3-chip--middle b3-chip--pointer",
+    icon: 0, // 0禁用 1只显示设置图标的 2显示所有
+    sibling: false, // 为true则在父文档不存在时清除
+    nameMaxLength: 0,// 最长文档名称 0不限制
+    docMaxNum: 0, // 最大文档显示数量 0不限制
+};
 
 /* API */
 

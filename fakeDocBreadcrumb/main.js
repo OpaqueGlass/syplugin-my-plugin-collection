@@ -267,7 +267,7 @@ function setStyle() {
     style.type = 'text/css';
     style.setAttribute("id", "fake-breadcrumb-style");
     style.innerHTML = `
-    .profile-content { 
+    .protyle-content { 
         padding-top: ${newPaddingTop}px; 
     }
     #fake-doc-breadcrumb {}
