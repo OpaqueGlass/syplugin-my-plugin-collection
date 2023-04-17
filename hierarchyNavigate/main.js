@@ -45,6 +45,7 @@ class HierachyNavigatePlugin extends Plugin {
         const settingCache = await this.loadStorage("settings.json");
         // 解析并载入配置
         let settingData = JSON.parse(settingCache);
+        Object.assign(g_setting, g_setting_default);
         Object.assign(g_setting, settingData);
         // 生成配置页面
         this.registerSettingRender((el) => {
@@ -52,15 +53,20 @@ class HierachyNavigatePlugin extends Plugin {
             const settingForm = document.createElement("form");
             settingForm.setAttribute("name", CONSTANTS.PLUGIN_NAME);
             settingForm.innerHTML = generateSettingPanelHTML([
-                new SettingProperty("fontSize", "NUMBER", [0, 1024], g_setting.fontSize),
-                new SettingProperty("sibling", "SWITCH", null, g_setting.sibling),
-                new SettingProperty("docMaxNum", "NUMBER", [0, 1024], g_setting.docMaxNum),
-                new SettingProperty("nameMaxLength", "NUMBER", [0, 1024], g_setting.nameMaxLength),
+                new SettingProperty("fontSize", "NUMBER", [0, 1024]),
+                new SettingProperty("sibling", "SWITCH", null),
+                new SettingProperty("popupWindow", "SWITCH", null),
+                new SettingProperty("docMaxNum", "NUMBER", [0, 1024]),
+                new SettingProperty("nameMaxLength", "NUMBER", [0, 1024]),
                 new SettingProperty("icon", "SELECT", [
                     {name: "不显示", value:0},
                     {name: "仅自定义", value:1},
-                    {name: "显示全部",value:2}], g_setting.icon),
-                new SettingProperty("docLinkClass", "TEXTAREA", null, g_setting.docLinkClass)
+                    {name: "显示全部",value:2}]),
+                new SettingProperty("docLinkClass", "TEXTAREA", null),
+                new SettingProperty("parentBoxCSS", "TEXTAREA", null),
+                new SettingProperty("siblingBoxCSS", "TEXTAREA", null),
+                new SettingProperty("childBoxCSS", "TEXTAREA", null),
+                new SettingProperty("docLinkCSS", "TEXTAREA", null),
             ]);
 
             hello.appendChild(settingForm);
@@ -70,8 +76,13 @@ class HierachyNavigatePlugin extends Plugin {
                 console.log('CHANGED');
                 let uiSettings = loadUISettings(settingForm);
                 clearTimeout(g_saveTimeout);
-                g_saveTimeout = setTimeout(()=>{this.writeStorage(`settings.json`, JSON.stringify(uiSettings));console.log("SAVED");}, CONSTANTS.SAVE_TIMEOUT)
-                Object.assign(g_setting, uiSettings);
+                g_saveTimeout = setTimeout(()=>{
+                    this.writeStorage(`settings.json`, JSON.stringify(uiSettings));
+                    Object.assign(g_setting, uiSettings);
+                    removeStyle();
+                    setStyle();  
+                    console.log("SAVED");
+                }, CONSTANTS.SAVE_TIMEOUT);
             });
         });
         // 开始运行
@@ -106,27 +117,43 @@ const CONSTANTS = {
     ICON_CUSTOM_ONLY: 1,
     PLUGIN_NAME: "og_hierachy_navigate",
     SAVE_TIMEOUT: 900,
+    CONTAINER_CLASS_NAME: "og-hierachy-navigate-doc-container", 
 }
 let g_observerRetryInterval;
 let g_observerStartupRefreshTimeout;
 let g_TIMER_LABLE_NAME_COMPARE = "文档栏插件";
 let g_tabbarElement = undefined;
 let g_saveTimeout;
-let g_fontSize = "12px";
 let g_isMobile = false;
 let g_setting = {
+    fontSize: null,
+    parentBoxCSS: null,
+    siblingBoxCSS: null,
+    childBoxCSS: null,
+    docLinkCSS: null,
+    docLinkClass: "",
+    icon: null, // 0禁用 1只显示设置图标的 2显示所有
+    sibling: null, // 为true则在父文档不存在时清除
+    nameMaxLength: null,// 文档名称最大长度 0不限制
+    docMaxNum: null, // API最大文档显示数量 0不限制（请求获取全部子文档），建议设置数量大于32
+    limitPopUpScope: null,// 限制浮窗触发范围
+    linkDivider: null,
+    popupWindow: null,
+};
+let g_setting_default = {
     fontSize: 12,
     parentBoxCSS: "",
     siblingBoxCSS: "",
     childBoxCSS: "",
     docLinkCSS: "",
-    docLinkClass: "b3-chip b3-chip--middle b3-chip--pointer",
+    docLinkClass: "",
     icon: CONSTANTS.ICON_CUSTOM_ONLY, // 0禁用 1只显示设置图标的 2显示所有
     sibling: false, // 为true则在父文档不存在时清除
     nameMaxLength: 20,// 文档名称最大长度 0不限制
     docMaxNum: 512, // API最大文档显示数量 0不限制（请求获取全部子文档），建议设置数量大于32
     limitPopUpScope: false,// 限制浮窗触发范围
-    linkDivider: "◈",
+    linkDivider: "",
+    popupWindow: true,
 };
 class SettingProperty {
     id;
@@ -142,14 +169,18 @@ class SettingProperty {
      * @param {*} type 设置项类型
      * @param {*} limit 限制
      */
-    constructor(id, type, limit, value) {
+    constructor(id, type, limit, value = undefined) {
         this.id = `${CONSTANTS.PLUGIN_NAME}_${id}`;
         this.simpId = id;
         this.name = language[`setting_${id}_name`];
         this.desp = language[`setting_${id}_desp`];
         this.type = type;
         this.limit = limit;
-        this.value = value;
+        if (value) {
+            this.value = value;
+        }else{
+            this.value = g_setting[this.simpId];
+        }
     }
 }
 
@@ -284,10 +315,10 @@ async function getDocumentRelations(docId) {
     let siblingDocs = await getSiblingDocuments(docId, parentDoc, sqlResult, noParentFlag);
 
     // 超长部分裁剪
-    if (childDocs.length > g_setting.docMaxNum) {
+    if (childDocs.length > g_setting.docMaxNum && g_setting.docMaxNum != 0) {
         childDocs = childDocs.slice(0, g_setting.docMaxNum);
     }
-    if (siblingDocs.length > g_setting.docMaxNum) {
+    if (siblingDocs.length > g_setting.docMaxNum && g_setting.docMaxNum != 0) {
         siblingDocs = siblingDocs.slice(0, g_setting.docMaxNum);
     }
 
@@ -347,13 +378,14 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
             siblingElem.innerHTML = siblingElemInnerText + language["none"];
             htmlElem.appendChild(siblingElem);
         }
+        
     }else{
         parentElem.innerHTML = parentElemInnerText + language["none"];
         htmlElem.appendChild(parentElem);
     }
-
     let childElem = document.createElement("div");
-    childElem.setAttribute("id", "parent-doc-container");
+    childElem.setAttribute("id", "children-doc-container");
+    
     childElem.style.padding = "0px 6px";
     let childElemInnerText = `<span class="heading-docs-indicator">${language["child_nodes"]}</span>`;
     for (let doc of childDoc) {
@@ -366,22 +398,27 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
         childElem.innerHTML = childElemInnerText + language["none"];
         htmlElem.appendChild(childElem);
     }
+    
+    parentElem.classList.add(CONSTANTS.CONTAINER_CLASS_NAME);
+    siblingElem.classList.add(CONSTANTS.CONTAINER_CLASS_NAME);
+    childElem.classList.add(CONSTANTS.CONTAINER_CLASS_NAME);
 
     console.log(parentElemInnerText, childElemInnerText, siblingElemInnerText);
     return htmlElem;
     function docLinkGenerator(doc) {
         let emojiStr = getEmojiHtmlStr(doc.icon, doc?.subFileCount != 0);
         let docName = isValidStr(doc?.name) ? doc.name.substring(0, doc.name.length - 3) : doc.content;
+        let trimDocName = docName;
         // 文件名长度限制
-        if (docName.length > g_setting.nameMaxLength && g_setting.nameMaxLength != 0) docName = docName.substring(0, g_setting.nameMaxLength) + "...";
-        let result = `<a class="refLinks docLinks ${g_setting.docLinkClass == null ? "":g_setting.docLinkClass}"
-         data-type='block-ref'
+        if (docName.length > g_setting.nameMaxLength && g_setting.nameMaxLength != 0) trimDocName = docName.substring(0, g_setting.nameMaxLength) + "...";
+        let result = `<span class="refLinks docLinksWrapper ${g_setting.docLinkClass == null ? "":CSS.escape(g_setting.docLinkClass)}"
+         ${g_setting.popupWindow?"data-type='block-ref'":""}
          data-subtype="d"
-         style="color: var(--b3-protyle-inline-link-color);
-         margin-bottom: 3px; font-size: ${g_setting.fontSize}px; margin-right: 10px"
+         style="font-size: ${g_setting.fontSize}px;"
+         title="${docName}"
          data-id="${doc.id}">
-            ${emojiStr}${docName}
-        </a>`
+            ${emojiStr}${trimDocName}
+        </span>`
 
         return result;
     }
@@ -395,7 +432,7 @@ function setAndApply(htmlElem, docId) {
         htmlElem.style.paddingRight = "16px";
         htmlElem.style.paddingTop = "16px";
         window.document.querySelector(`.fn__flex-column .protyle-background[data-node-id="${docId}"]`).insertAdjacentElement("afterend", htmlElem);
-        [].forEach.call(window.document.querySelectorAll(`#heading-docs-container  a.refLinks`), (elem)=>{
+        [].forEach.call(window.document.querySelectorAll(`#heading-docs-container span.refLinks`), (elem)=>{
             elem.addEventListener("click", openRefLink);
         });
         return;
@@ -403,7 +440,7 @@ function setAndApply(htmlElem, docId) {
     if (window.document.querySelector(`.protyle-title[data-node-id="${docId}"] #heading-docs-container`) != null) return;
     // if (window.document.querySelector(`.protyle-title[data-node-id="${docId}"] #heading-docs-container`) != null) return;
     window.document.querySelector(`.layout__wnd--active .protyle.fn__flex-1:not(.fn__none) .protyle-title`)?.append(htmlElem);
-    [].forEach.call(window.document.querySelectorAll(`#heading-docs-container  a.refLinks`), (elem)=>{
+    [].forEach.call(window.document.querySelectorAll(`#heading-docs-container  span.refLinks`), (elem)=>{
         elem.addEventListener("click", openRefLink);
         elem.style.marginRight = "10px";
     });
@@ -413,15 +450,46 @@ function setStyle() {
     const head = document.getElementsByTagName('head')[0];
     const style = document.createElement('style');
     style.setAttribute("id", CONSTANTS.STYLE_ID);
-    style.innerHTML = `
-    #heading-docs-container span.docLinks:hover {
-        cursor: pointer;
-        opacity: .86;
-        text-decoration: underline;
-    }
+    const defaultLinkStyle = `
+    .${CONSTANTS.CONTAINER_CLASS_NAME} span.docLinksWrapper{
+        background-color: var(--b3-theme-surface-light);
+        color: var(--b3-protyle-inline-link-color);
+        line-height: ${g_setting.fontSize + 2}px;
+        font-weight: 400;
+        display: inline-flex;
+        align-items: center;
+        box-sizing: border-box;
+        padding: 4px 6px;
+        border-radius: ${(g_setting.fontSize + 2)}px;
+        transition: var(--b3-transition);
+        margin-right: 10px;
+        margin-bottom: 3px;
+    }`;
 
+    style.innerHTML = `
+    #heading-docs-container span.docLinksWrapper:hover {
+        cursor: pointer;
+        box-shadow: 0 0 2px var(--b3-list-hover);
+        /*background-color: var(--b3-toolbar-hover);*/
+        /*text-decoration: underline;*/
+    }
+    .${CONSTANTS.CONTAINER_CLASS_NAME} {
+        text-align: left;
+    }
+    ${g_setting.docLinkCSS == g_setting_default.docLinkCSS? defaultLinkStyle:""}
+    #parent-doc-container {${styleEscape(g_setting.parentBoxCSS)}}
+
+    #children-doc-container {${styleEscape(g_setting.childBoxCSS)}}
+
+    #sibling-doc-container {${styleEscape(g_setting.siblingBoxCSS)}}
+
+    .${CONSTANTS.CONTAINER_CLASS_NAME} span.docLinksWrapper {${styleEscape(g_setting.docLinkCSS)}}
     `;
     head.appendChild(style);
+}
+
+function styleEscape(str) {
+    return str.replace(new RegExp("<[^<]*style[^>]*>", "g"), "");
 }
 
 function removeStyle() {
@@ -490,7 +558,9 @@ async function listDocsByPath({path, notebook = undefined, sort = undefined, max
     if (sort) data["sort"] = sort;
     if (g_setting.docMaxNum != 0) {
         data["maxListCount"] = g_setting.docMaxNum >= 32 ? g_setting.docMaxNum : 32;
-    } 
+    } else {
+        data["maxListCount"] = 0;
+    }
     let url = '/api/filetree/listDocsByPath';
     return parseBody(request(url, data));
     //文档hepath与Markdown 内容
@@ -549,22 +619,51 @@ let zh_CN = {
     "sibling_nodes": "兄：",
     "none": "无",
     "setting_fontSize_name": "字号",
+    "setting_fontSize_desp": "单位：px",
     "setting_nameMaxLength_name": "文档名最大长度",
-    "setting_nameMaxLength_desp": "文档名长度超过该值，将被截断，并标注“...”",
+    "setting_nameMaxLength_desp": "文档名超出的部分将被删除。设置为0则不限制。",
     "setting_docMaxNum_name": "文档最大数量",
-    "setting_docMaxNum_desp": "当子文档或同级文档超过该值时，后续文档将不再显示",
+    "setting_docMaxNum_desp": "当子文档或同级文档超过该值时，后续文档将不再显示。设置为0则不限制。",
     "setting_icon_name": "文档图标",
-    "setting_icon_desp": "控制文档图标显示方式",
+    "setting_icon_desp": "控制文档图标显示与否",
     "setting_sibling_name": "父文档为笔记本时，显示同级文档",
     "setting_docLinkClass_name": "文档链接样式Class",
-    "setting_docLinkClass_desp": "文档链接所属的CSS class，用于套用思源已存在的样式类"
+    "setting_docLinkClass_desp": "文档链接所属的CSS class，用于套用思源已存在的样式类",
+    "setting_popupWindow_name": "允许悬停时显示浮窗",
+    "setting_docLinkCSS_name": "链接样式CSS",
+    "setting_childBoxCSS_name": "子文档容器CSS",
+    "setting_parentBoxCSS_name": "父文档容器CSS",
+    "setting_siblingBoxCSS_name": "同级文档容器CSS",
+    "setting_parentBoxCSS_desp": "如果不修改，请留空。",
+    "setting_childBoxCSS_desp": "如果不修改，请留空。",
+    "setting_siblingBoxCSS_desp": "如果不修改，请留空。",
 }
 
 let en_US = {
     "parent_nodes": "Parent: ",
     "child_nodes": "Children: ",
     "sibling_nodes": "Sibling: ",
-    "none": "N/A"
+    "none": "N/A",
+    "setting_fontSize_name": "Font Size",
+    "setting_fontSize_desp": "Unit: px",
+    "setting_nameMaxLength_name": "Maximum length of the document name",
+    "setting_nameMaxLength_desp": "The excess part of the document name will be hided. If set to 0, there is no limit.",
+    "setting_docMaxNum_name": "Maximum number of documents",
+    "setting_docMaxNum_desp": "When a subdocument or sibling document exceeds this value, subsequent documents are not displayed. If set to 0, there is no limit.",
+    "setting_icon_name": "Document Icon",
+    "setting_icon_desp": "Controls whether the document icon is displayed",
+    "setting_sibling_name": "Display sibling documents",
+    "setting_sibling_desp": "When the parent document is a notebook, the sibling document is displayed",
+    "setting_docLinkClass_name": "Document link style Class",
+    "setting_docLinkClass_desp": "The CSS class to which the document link belongs is used to apply siyuan's existing style class",
+    "setting_popupWindow_name": "Allow display popup window",
+    "setting_docLinkCSS_name": "Link style CSS",
+    "setting_childBoxCSS_name": "Subdocument container CSS",
+    "setting_parentBoxCSS_name": "Parent document container CSS",
+    "setting_siblingBoxCSS_name": "Sibling document container CSS",
+    "setting_parentBoxCSS_desp": "If no modification, please leave it blank",
+    "setting_siblingBoxCSS_desp": "If no modification, please leave it blank ",
+    "setting_childBoxCSS_desp": "If no modification, please leave it blank ",
 }
 let language = zh_CN;
 
@@ -576,6 +675,7 @@ function generateSettingPanelHTML(settingObjectArray) {
     let resultHTML = "";
     for (let oneSettingProperty of settingObjectArray) {
         let inputElemStr = "";
+        oneSettingProperty.desp = oneSettingProperty.desp?.replace(new RegExp("<code>", "g"), "<code class='fn__code'>");
         let temp = `
         <label class="fn__flex b3-label">
             <div class="fn__flex-1">
@@ -657,7 +757,7 @@ function generateSettingPanelHTML(settingObjectArray) {
         
         resultHTML += temp.replace("*#*##*#*", inputElemStr);
     }
-    console.log(resultHTML);
+    // console.log(resultHTML);
     return resultHTML;
 }
 
@@ -674,16 +774,33 @@ function loadCacheSettings() {
  */
 function loadUISettings(formElement) {
     let data = new FormData(formElement);
+    // 扫描标准元素 input[]
+    console.log(data);
     let result = {};
     for(const [key, value] of data.entries()) {
+        console.log(key, value);
         result[key] = value;
-        if (value == "true") {
+        if (value === "on") {
             result[key] = true;
-        }else if (value == "false") {
-            result[key] = false;
-        }else if (!isNaN(value)) {
-            result[key] = parseFloat(value);
+        }else if (value === "null" || value == "false") {
+            result[key] = "";
         }
     }
+    let checkboxes = formElement.querySelectorAll('input[type="checkbox"]');
+    for (let i = 0; i < checkboxes.length; i++) {
+        let checkbox = checkboxes[i];
+        console.log(checkbox, checkbox.name, data[checkbox.name], checkbox.name);
+        if (result[checkbox.name] == undefined) {
+            result[checkbox.name] = false;
+        }
+    }
+
+    let numbers = formElement.querySelectorAll("input[type='number']");
+    console.log(numbers);
+    for (let number of numbers) {
+        result[number.name] = parseFloat(number.value);
+    }
+
+    console.log("UI SETTING", result);
     return result;
 }
