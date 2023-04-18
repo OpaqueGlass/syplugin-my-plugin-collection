@@ -18,7 +18,7 @@ class HierachyNavigatePlugin extends Plugin {
         if (g_tabbarElement == undefined) {
             g_isMobile = true;
         }
-        console.log('TestRemotePluginCreated');
+        console.log('HierarchyNavigatorPluginCreated');
         // ~~若思源设定非中文，则显示英文~~
         let siyuanLanguage;
         try{
@@ -47,6 +47,8 @@ class HierachyNavigatePlugin extends Plugin {
         let settingData = JSON.parse(settingCache);
         Object.assign(g_setting, g_setting_default);
         Object.assign(g_setting, settingData);
+        // console.log("LOADED",settingData);
+        // console.log("LOADED_R", g_setting);
         // 生成配置页面
         this.registerSettingRender((el) => {
             const hello = document.createElement('div');
@@ -55,14 +57,19 @@ class HierachyNavigatePlugin extends Plugin {
             settingForm.innerHTML = generateSettingPanelHTML([
                 new SettingProperty("fontSize", "NUMBER", [0, 1024]),
                 new SettingProperty("sibling", "SWITCH", null),
-                new SettingProperty("popupWindow", "SWITCH", null),
+                new SettingProperty("popupWindow", "SELECT", [
+                    {value:0},
+                    {value:1},
+                    {value:2},
+                ]),
                 new SettingProperty("docMaxNum", "NUMBER", [0, 1024]),
                 new SettingProperty("nameMaxLength", "NUMBER", [0, 1024]),
                 new SettingProperty("icon", "SELECT", [
-                    {name: "不显示", value:0},
-                    {name: "仅自定义", value:1},
-                    {name: "显示全部",value:2}]),
-                new SettingProperty("docLinkClass", "TEXTAREA", null),
+                    {value:0},
+                    {value:1},
+                    {value:2}]),
+                new SettingProperty("linkDivider", "TEXT", null),
+                new SettingProperty("docLinkClass", "TEXT", null),
                 new SettingProperty("parentBoxCSS", "TEXTAREA", null),
                 new SettingProperty("siblingBoxCSS", "TEXTAREA", null),
                 new SettingProperty("childBoxCSS", "TEXTAREA", null),
@@ -118,6 +125,10 @@ const CONSTANTS = {
     PLUGIN_NAME: "og_hierachy_navigate",
     SAVE_TIMEOUT: 900,
     CONTAINER_CLASS_NAME: "og-hierachy-navigate-doc-container", 
+    INDICATOR_CLASS_NAME: "og-hierachy-navigate-doc-indicator",
+    POP_NONE: 0,
+    POP_LIMIT: 1,
+    POP_ALL: 2,
 }
 let g_observerRetryInterval;
 let g_observerStartupRefreshTimeout;
@@ -136,7 +147,6 @@ let g_setting = {
     sibling: null, // 为true则在父文档不存在时清除
     nameMaxLength: null,// 文档名称最大长度 0不限制
     docMaxNum: null, // API最大文档显示数量 0不限制（请求获取全部子文档），建议设置数量大于32
-    limitPopUpScope: null,// 限制浮窗触发范围
     linkDivider: null,
     popupWindow: null,
 };
@@ -153,7 +163,7 @@ let g_setting_default = {
     docMaxNum: 512, // API最大文档显示数量 0不限制（请求获取全部子文档），建议设置数量大于32
     limitPopUpScope: false,// 限制浮窗触发范围
     linkDivider: "",
-    popupWindow: true,
+    popupWindow: CONSTANTS.POP_LIMIT,
 };
 class SettingProperty {
     id;
@@ -276,7 +286,6 @@ function removeObserver() {
 }
 
 async function main(targets) {
-    console.log("TARGETS", targets);
     // 获取当前文档id
     const docId = getCurrentDocIdF();
     // 防止重复执行
@@ -290,7 +299,6 @@ async function main(targets) {
     console.log(parentDoc, childDoc, siblingDoc);
     // 生成插入文本
     const htmlElem = generateText(parentDoc, childDoc, siblingDoc, docId);
-    console.log(htmlElem);
     // 应用插入
     setAndApply(htmlElem, docId);
 }
@@ -310,7 +318,6 @@ async function getDocumentRelations(docId) {
     if (parentDoc.length == 0) {
         noParentFlag = true;
     }
-    console.log(parentDoc);
     // 获取同级文档
     let siblingDocs = await getSiblingDocuments(docId, parentDoc, sqlResult, noParentFlag);
 
@@ -403,7 +410,6 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
     siblingElem.classList.add(CONSTANTS.CONTAINER_CLASS_NAME);
     childElem.classList.add(CONSTANTS.CONTAINER_CLASS_NAME);
 
-    console.log(parentElemInnerText, childElemInnerText, siblingElemInnerText);
     return htmlElem;
     function docLinkGenerator(doc) {
         let emojiStr = getEmojiHtmlStr(doc.icon, doc?.subFileCount != 0);
@@ -411,15 +417,44 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
         let trimDocName = docName;
         // 文件名长度限制
         if (docName.length > g_setting.nameMaxLength && g_setting.nameMaxLength != 0) trimDocName = docName.substring(0, g_setting.nameMaxLength) + "...";
-        let result = `<span class="refLinks docLinksWrapper ${g_setting.docLinkClass == null ? "":CSS.escape(g_setting.docLinkClass)}"
-         ${g_setting.popupWindow?"data-type='block-ref'":""}
-         data-subtype="d"
-         style="font-size: ${g_setting.fontSize}px;"
-         title="${docName}"
-         data-id="${doc.id}">
-            ${emojiStr}${trimDocName}
-        </span>`
+        let result = "";
+        switch (parseInt(g_setting.popupWindow)) {
+            case CONSTANTS.POP_ALL: {
+                result = `<span class="refLinks docLinksWrapper ${g_setting.docLinkClass == null ? "":CSS.escape(g_setting.docLinkClass)}"
+                    data-type='block-ref'
+                    data-subtype="d"
+                    style="font-size: ${g_setting.fontSize}px;"
+                    title="${docName}"
+                    data-id="${doc.id}">
+                        ${emojiStr}${trimDocName}
+                    </span>`
+                break;
+            }
+            case CONSTANTS.POP_LIMIT:{
+                result = `<span class="refLinks docLinksWrapper ${g_setting.docLinkClass == null ? "":CSS.escape(g_setting.docLinkClass)}"
+                    data-subtype="d"
+                    style="font-size: ${g_setting.fontSize}px; display: inline-block"
+                    title="${docName}"
+                    data-id="${doc.id}">
+                        <span data-type='block-ref'
+                        data-subtype="d"
+                        data-id="${doc.id}"
+                        >${emojiStr}</span><span>${trimDocName}</span>
+                    </span>`
+                break;
+            }
+            case CONSTANTS.POP_NONE: {
+                result = `<span class="refLinks docLinksWrapper ${g_setting.docLinkClass == null ? "":CSS.escape(g_setting.docLinkClass)}"
 
+                    data-subtype="d"
+                    style="font-size: ${g_setting.fontSize}px;"
+                    title="${docName}"
+                    data-id="${doc.id}">
+                        ${emojiStr}${trimDocName}
+                    </span>`
+                break;
+            }
+        }
         return result;
     }
 }
@@ -437,7 +472,7 @@ function setAndApply(htmlElem, docId) {
         });
         return;
     }
-    if (window.document.querySelector(`.protyle-title[data-node-id="${docId}"] #heading-docs-container`) != null) return;
+    if (window.document.querySelector(`.layout__wnd--active .protyle.fn__flex-1:not(.fn__none) .protyle-title #heading-docs-container`) != null) return;
     // if (window.document.querySelector(`.protyle-title[data-node-id="${docId}"] #heading-docs-container`) != null) return;
     window.document.querySelector(`.layout__wnd--active .protyle.fn__flex-1:not(.fn__none) .protyle-title`)?.append(htmlElem);
     [].forEach.call(window.document.querySelectorAll(`#heading-docs-container  span.refLinks`), (elem)=>{
@@ -503,11 +538,10 @@ function removeStyle() {
  * @returns 
  */
 function getEmojiHtmlStr(iconString, hasChild) {
-    //没有icon属性，不是文档类型或禁用emoji，则不返回emoji
-    if (iconString == undefined || iconString == null || g_setting.icon == CONSTANTS.ICON_NONE) return g_setting.linkDivider;
+    if (g_setting.icon == CONSTANTS.ICON_NONE) return g_setting.linkDivider;
     // 无emoji的处理
-    if (iconString == "" && g_setting.icon == CONSTANTS.ICON_ALL) return hasChild ? "📑" : "📄";//无icon默认值
-    if (iconString == "" && g_setting.icon == CONSTANTS.ICON_CUSTOM_ONLY) return g_setting.linkDivider;
+    if ((iconString == undefined || iconString == null ||iconString == "") && g_setting.icon == CONSTANTS.ICON_ALL) return hasChild ? "📑" : "📄";//无icon默认值
+    if ((iconString == undefined || iconString == null ||iconString == "") && g_setting.icon == CONSTANTS.ICON_CUSTOM_ONLY) return g_setting.linkDivider;
     let result = iconString;
     // emoji地址判断逻辑为出现.，但请注意之后的补全
     if (iconString.indexOf(".") != -1) {
@@ -626,17 +660,26 @@ let zh_CN = {
     "setting_docMaxNum_desp": "当子文档或同级文档超过该值时，后续文档将不再显示。设置为0则不限制。",
     "setting_icon_name": "文档图标",
     "setting_icon_desp": "控制文档图标显示与否",
-    "setting_sibling_name": "父文档为笔记本时，显示同级文档",
+    "setting_sibling_name": "文档上级为笔记本时，显示同级文档",
     "setting_docLinkClass_name": "文档链接样式Class",
     "setting_docLinkClass_desp": "文档链接所属的CSS class，用于套用思源已存在的样式类",
-    "setting_popupWindow_name": "允许悬停时显示浮窗",
+    "setting_popupWindow_name": "浮窗触发范围",
     "setting_docLinkCSS_name": "链接样式CSS",
+    "setting_docLinkCSS_desp": "设置后，将同时禁用默认样式",
     "setting_childBoxCSS_name": "子文档容器CSS",
     "setting_parentBoxCSS_name": "父文档容器CSS",
     "setting_siblingBoxCSS_name": "同级文档容器CSS",
     "setting_parentBoxCSS_desp": "如果不修改，请留空。",
     "setting_childBoxCSS_desp": "如果不修改，请留空。",
     "setting_siblingBoxCSS_desp": "如果不修改，请留空。",
+    "setting_linkDivider_name": "禁用图标时文档名前缀",
+    "setting_linkDivider_desp": "在没有图标的文档链接前，加入该前缀。填写示例：<code>◈</code>。",
+    "setting_icon_option_0": "不显示",
+    "setting_icon_option_1": "仅自定义",
+    "setting_icon_option_2": "显示全部",
+    "setting_popupWindow_option_0": "不触发",
+    "setting_popupWindow_option_1": "仅图标触发",
+    "setting_popupWindow_option_2": "全部触发"
 }
 
 let en_US = {
@@ -656,14 +699,23 @@ let en_US = {
     "setting_sibling_desp": "When the parent document is a notebook, the sibling document is displayed",
     "setting_docLinkClass_name": "Document link style Class",
     "setting_docLinkClass_desp": "The CSS class to which the document link belongs is used to apply siyuan's existing style class",
-    "setting_popupWindow_name": "Allow display popup window",
+    "setting_popupWindow_name": "Set popup window trigger range",
     "setting_docLinkCSS_name": "Link style CSS",
+    "setting_docLinkCSS_desp": "Once set, the default style is also disabled",
     "setting_childBoxCSS_name": "Subdocument container CSS",
     "setting_parentBoxCSS_name": "Parent document container CSS",
     "setting_siblingBoxCSS_name": "Sibling document container CSS",
     "setting_parentBoxCSS_desp": "If no modification, please leave it blank",
     "setting_siblingBoxCSS_desp": "If no modification, please leave it blank ",
     "setting_childBoxCSS_desp": "If no modification, please leave it blank ",
+    "setting_linkDivider_name": "Document name prefix",
+    "setting_linkDivider_desp": "This prefix would be added before a document link without an icon",
+    "setting_icon_option_0": "Hide all",
+    "setting_icon_option_1": "Custom only",
+    "setting_icon_option_2": "Show all",
+    "setting_popupWindow_option_0": "Do not set trigger",
+    "setting_popupWindow_option_1": "Icon only",
+    "setting_popupWindow_option_2": "Icon and link text",
 }
 let language = zh_CN;
 
@@ -704,9 +756,13 @@ function generateSettingPanelHTML(settingObjectArray) {
 
                 let optionStr = "";
                 for (let option of oneSettingProperty.limit) {
+                    let optionName = option.name;
+                    if (!optionName) {
+                        optionName = language[`setting_${oneSettingProperty.simpId}_option_${option.value}`];
+                    }
                     optionStr += `<option value="${option.value}" 
                     ${option.value == oneSettingProperty.value ? "selected":""}>
-                        ${option.name}
+                        ${optionName}
                     </option>`;
                 }
                 inputElemStr = `<select 
@@ -718,15 +774,16 @@ function generateSettingPanelHTML(settingObjectArray) {
                 break;
             }
             case "TEXT": {
-                inputElemStr = `<input class="b3-text-field fn__flex-center fn__size200" id="${oneSettingProperty.id}"></input>`;
+                inputElemStr = `<input class="b3-text-field fn__flex-center fn__size200" id="${oneSettingProperty.id}" name="${oneSettingProperty.simpId}" value="${oneSettingProperty.value}"></input>`;
                 temp = `
                 <label class="fn__flex b3-label config__item">
                     <div class="fn__flex-1">
                         ${oneSettingProperty.name}
                         <div class="b3-label__text">${oneSettingProperty.desp??""}</div>
                     </div>
-                    
+                    *#*##*#*
                 </label>`
+                break;
             }
             case "SWITCH": {
                 inputElemStr = `<input 
@@ -775,10 +832,9 @@ function loadCacheSettings() {
 function loadUISettings(formElement) {
     let data = new FormData(formElement);
     // 扫描标准元素 input[]
-    console.log(data);
     let result = {};
     for(const [key, value] of data.entries()) {
-        console.log(key, value);
+        // console.log(key, value);
         result[key] = value;
         if (value === "on") {
             result[key] = true;
@@ -789,14 +845,14 @@ function loadUISettings(formElement) {
     let checkboxes = formElement.querySelectorAll('input[type="checkbox"]');
     for (let i = 0; i < checkboxes.length; i++) {
         let checkbox = checkboxes[i];
-        console.log(checkbox, checkbox.name, data[checkbox.name], checkbox.name);
+        // console.log(checkbox, checkbox.name, data[checkbox.name], checkbox.name);
         if (result[checkbox.name] == undefined) {
             result[checkbox.name] = false;
         }
     }
 
     let numbers = formElement.querySelectorAll("input[type='number']");
-    console.log(numbers);
+    // console.log(numbers);
     for (let number of numbers) {
         result[number.name] = parseFloat(number.value);
     }
