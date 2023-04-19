@@ -91,6 +91,7 @@ class HierachyNavigatePlugin extends Plugin {
                     console.log("SAVED");
                 }, CONSTANTS.SAVE_TIMEOUT);
             });
+            g_writeStorage = this.writeStorage;
         });
         // 开始运行
         setObserver();
@@ -125,6 +126,9 @@ const CONSTANTS = {
     PLUGIN_NAME: "og_hierachy_navigate",
     SAVE_TIMEOUT: 900,
     CONTAINER_CLASS_NAME: "og-hierachy-navigate-doc-container", 
+    PARENT_CONTAINER_ID: "og-hierachy-navigate-parent-doc-container",
+    CHILD_CONTAINER_ID: "og-hierachy-navigate-children-doc-container",
+    SIBLING_CONTAINER_ID: "og-hierachy-navigate-sibling-doc-container",
     INDICATOR_CLASS_NAME: "og-hierachy-navigate-doc-indicator",
     POP_NONE: 0,
     POP_LIMIT: 1,
@@ -135,6 +139,7 @@ let g_observerStartupRefreshTimeout;
 let g_TIMER_LABLE_NAME_COMPARE = "文档栏插件";
 let g_tabbarElement = undefined;
 let g_saveTimeout;
+let g_writeStorage;
 let g_isMobile = false;
 let g_setting = {
     fontSize: null,
@@ -289,7 +294,7 @@ async function main(targets) {
     // 获取当前文档id
     const docId = getCurrentDocIdF();
     // 防止重复执行
-    if (window.document.querySelector(`.protyle-title[data-node-id="${docId}"] #heading-docs-container`) != null) return;
+    if (window.document.querySelector(`.protyle-title[data-node-id="${docId}"] #og-hn-heading-docs-container`) != null) return;
     if (docId == null) {
         console.warn("未能读取到打开文档的id");
         return ;
@@ -299,6 +304,7 @@ async function main(targets) {
     console.log(parentDoc, childDoc, siblingDoc);
     // 生成插入文本
     const htmlElem = generateText(parentDoc, childDoc, siblingDoc, docId);
+    console.log("FIN",htmlElem);
     // 应用插入
     setAndApply(htmlElem, docId);
 }
@@ -357,28 +363,30 @@ async function getSiblingDocuments(docId, parentSqlResult, sqlResult, noParentFl
  */
 function generateText(parentDoc, childDoc, siblingDoc, docId) {
     let htmlElem = document.createElement("div");
-    htmlElem.setAttribute("id", "heading-docs-container");
+    htmlElem.setAttribute("id", "og-hn-heading-docs-container");
     htmlElem.style.fontSize = `${g_setting.fontSize}px`;
     let parentElem = document.createElement("div");
-    parentElem.setAttribute("id", "parent-doc-container");
+    parentElem.setAttribute("id", CONSTANTS.PARENT_CONTAINER_ID);
     parentElem.style.padding = "0px 6px";
-    let parentElemInnerText = `<span class="heading-docs-indicator">${language["parent_nodes"]}</span>`;
+    let parentElemInnerText = `<span class="${CONSTANTS.INDICATOR_CLASS_NAME}">${language["parent_nodes"]}</span>`;
+    let parentFlag = false;
     for (let doc of parentDoc) {
         parentElemInnerText += docLinkGenerator(doc);
+        parentFlag = true;
     }
     let siblingElem = document.createElement("div");
-    siblingElem.setAttribute("id", "parent-doc-container");
+    siblingElem.setAttribute("id", CONSTANTS.SIBLING_CONTAINER_ID);
     siblingElem.style.padding = "0px 6px";
-    let siblingElemInnerText = `<span class="heading-docs-indicator">${language["sibling_nodes"]}</span>`;
+    let siblingElemInnerText = `<span class="${CONSTANTS.INDICATOR_CLASS_NAME}">${language["sibling_nodes"]}</span>`;
 
-    if (parentElemInnerText != `<span class="heading-docs-indicator">${language["parent_nodes"]}</span>`) {
+    if (parentFlag) {
         parentElem.innerHTML = parentElemInnerText;
         htmlElem.appendChild(parentElem);
     }else if (g_setting.sibling){
         for (let doc of siblingDoc) {
             siblingElemInnerText += docLinkGenerator(doc);
         }
-        if (siblingElemInnerText != `<span class="heading-docs-indicator">${language["sibling_nodes"]}</span>`) {
+        if (siblingElemInnerText != `<span class="${CONSTANTS.INDICATOR_CLASS_NAME}">${language["sibling_nodes"]}</span>`) {
             siblingElem.innerHTML = siblingElemInnerText;
             htmlElem.appendChild(siblingElem);
         }else{
@@ -391,14 +399,16 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
         htmlElem.appendChild(parentElem);
     }
     let childElem = document.createElement("div");
-    childElem.setAttribute("id", "children-doc-container");
+    childElem.setAttribute("id", CONSTANTS.CHILD_CONTAINER_ID);
     
     childElem.style.padding = "0px 6px";
-    let childElemInnerText = `<span class="heading-docs-indicator">${language["child_nodes"]}</span>`;
+    let childElemInnerText = `<span class="${CONSTANTS.INDICATOR_CLASS_NAME}">${language["child_nodes"]}</span>`;
+    let childFlag = false;
     for (let doc of childDoc) {
         childElemInnerText += docLinkGenerator(doc);
+        childFlag = true;
     }
-    if (childElemInnerText != `<span class="heading-docs-indicator">${language["child_nodes"]}</span>`) {
+    if (childFlag) {
         childElem.innerHTML = childElemInnerText;
         htmlElem.appendChild(childElem);
     }else{
@@ -409,7 +419,7 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
     parentElem.classList.add(CONSTANTS.CONTAINER_CLASS_NAME);
     siblingElem.classList.add(CONSTANTS.CONTAINER_CLASS_NAME);
     childElem.classList.add(CONSTANTS.CONTAINER_CLASS_NAME);
-
+    
     return htmlElem;
     function docLinkGenerator(doc) {
         let emojiStr = getEmojiHtmlStr(doc.icon, doc?.subFileCount != 0);
@@ -420,7 +430,7 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
         let result = "";
         switch (parseInt(g_setting.popupWindow)) {
             case CONSTANTS.POP_ALL: {
-                result = `<span class="refLinks docLinksWrapper ${g_setting.docLinkClass == null ? "":CSS.escape(g_setting.docLinkClass)}"
+                result = `<span class="refLinks docLinksWrapper ${g_setting.docLinkClass == null ? "": escapeClass(g_setting.docLinkClass)}"
                     data-type='block-ref'
                     data-subtype="d"
                     style="font-size: ${g_setting.fontSize}px;"
@@ -431,7 +441,7 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
                 break;
             }
             case CONSTANTS.POP_LIMIT:{
-                result = `<span class="refLinks docLinksWrapper ${g_setting.docLinkClass == null ? "":CSS.escape(g_setting.docLinkClass)}"
+                result = `<span class="refLinks docLinksWrapper ${g_setting.docLinkClass == null ? "":escapeClass(g_setting.docLinkClass)}"
                     data-subtype="d"
                     style="font-size: ${g_setting.fontSize}px; display: inline-block"
                     title="${docName}"
@@ -444,7 +454,7 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
                 break;
             }
             case CONSTANTS.POP_NONE: {
-                result = `<span class="refLinks docLinksWrapper ${g_setting.docLinkClass == null ? "":CSS.escape(g_setting.docLinkClass)}"
+                result = `<span class="refLinks docLinksWrapper ${g_setting.docLinkClass == null ? "":escapeClass(g_setting.docLinkClass)}"
 
                     data-subtype="d"
                     style="font-size: ${g_setting.fontSize}px;"
@@ -454,28 +464,37 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
                     </span>`
                 break;
             }
+            default: {
+                console.warn("WARN数据格式不正常");
+                g_setting.icon = g_setting_default.icon;
+                g_writeStorage("settings.json", JSON.stringify(g_setting));
+            }
         }
         return result;
+        function escapeClass(val) {
+            return val.replaceAll(`"`, "");
+        }
     }
 }
 
 function setAndApply(htmlElem, docId) {
     if (g_isMobile) {
-        window.document.querySelector(`.protyle-background ~ #heading-docs-container`)?.remove();
-        // if (window.document.querySelector(`.protyle-background[data-node-id="${docId}"] #heading-docs-container`) != null) return;
+        window.document.querySelector(`.protyle-background ~ #og-hn-heading-docs-container`)?.remove();
+        // if (window.document.querySelector(`.protyle-background[data-node-id="${docId}"] #og-hn-heading-docs-container`) != null) return;
         htmlElem.style.paddingLeft = "24px";
         htmlElem.style.paddingRight = "16px";
         htmlElem.style.paddingTop = "16px";
         window.document.querySelector(`.fn__flex-column .protyle-background[data-node-id="${docId}"]`).insertAdjacentElement("afterend", htmlElem);
-        [].forEach.call(window.document.querySelectorAll(`#heading-docs-container span.refLinks`), (elem)=>{
+        [].forEach.call(window.document.querySelectorAll(`#og-hn-heading-docs-container span.refLinks`), (elem)=>{
             elem.addEventListener("click", openRefLink);
         });
+        console.log("SETED_MOBILE");
         return;
     }
-    if (window.document.querySelector(`.layout__wnd--active .protyle.fn__flex-1:not(.fn__none) .protyle-title #heading-docs-container`) != null) return;
-    // if (window.document.querySelector(`.protyle-title[data-node-id="${docId}"] #heading-docs-container`) != null) return;
+    if (window.document.querySelector(`.layout__wnd--active .protyle.fn__flex-1:not(.fn__none) .protyle-title #og-hn-heading-docs-container`) != null) return;
+    // if (window.document.querySelector(`.protyle-title[data-node-id="${docId}"] #og-hn-heading-docs-container`) != null) return;
     window.document.querySelector(`.layout__wnd--active .protyle.fn__flex-1:not(.fn__none) .protyle-title`)?.append(htmlElem);
-    [].forEach.call(window.document.querySelectorAll(`#heading-docs-container  span.refLinks`), (elem)=>{
+    [].forEach.call(window.document.querySelectorAll(`#og-hn-heading-docs-container  span.refLinks`), (elem)=>{
         elem.addEventListener("click", openRefLink);
         elem.style.marginRight = "10px";
     });
@@ -487,8 +506,8 @@ function setStyle() {
     style.setAttribute("id", CONSTANTS.STYLE_ID);
     const defaultLinkStyle = `
     .${CONSTANTS.CONTAINER_CLASS_NAME} span.docLinksWrapper{
-        background-color: var(--b3-theme-surface-light);
-        color: var(--b3-protyle-inline-link-color);
+        background-color: var(--b3-protyle-inline-code-background);/*--b3-protyle-code-background  --b3-theme-surface-light*/
+        color: var(--b3-protyle-inline-code-color);
         line-height: ${g_setting.fontSize + 2}px;
         font-weight: 400;
         display: inline-flex;
@@ -502,21 +521,22 @@ function setStyle() {
     }`;
 
     style.innerHTML = `
-    #heading-docs-container span.docLinksWrapper:hover {
+    #og-hn-heading-docs-container span.docLinksWrapper:hover {
         cursor: pointer;
         box-shadow: 0 0 2px var(--b3-list-hover);
+        opacity: .86;
         /*background-color: var(--b3-toolbar-hover);*/
         /*text-decoration: underline;*/
     }
     .${CONSTANTS.CONTAINER_CLASS_NAME} {
         text-align: left;
     }
-    ${g_setting.docLinkCSS == g_setting_default.docLinkCSS? defaultLinkStyle:""}
-    #parent-doc-container {${styleEscape(g_setting.parentBoxCSS)}}
+    ${g_setting.docLinkCSS == g_setting_default.docLinkCSS && g_setting.docLinkClass == g_setting_default.docLinkClass? defaultLinkStyle:""}
+    #${CONSTANTS.PARENT_CONTAINER_ID} {${styleEscape(g_setting.parentBoxCSS)}}
 
-    #children-doc-container {${styleEscape(g_setting.childBoxCSS)}}
+    #${CONSTANTS.CHILD_CONTAINER_ID} {${styleEscape(g_setting.childBoxCSS)}}
 
-    #sibling-doc-container {${styleEscape(g_setting.siblingBoxCSS)}}
+    #${CONSTANTS.SIBLING_CONTAINER_ID} {${styleEscape(g_setting.siblingBoxCSS)}}
 
     .${CONSTANTS.CONTAINER_CLASS_NAME} span.docLinksWrapper {${styleEscape(g_setting.docLinkCSS)}}
     `;
@@ -662,10 +682,10 @@ let zh_CN = {
     "setting_icon_desp": "控制文档图标显示与否",
     "setting_sibling_name": "文档上级为笔记本时，显示同级文档",
     "setting_docLinkClass_name": "文档链接样式Class",
-    "setting_docLinkClass_desp": "文档链接所属的CSS class，用于套用思源已存在的样式类",
+    "setting_docLinkClass_desp": "文档链接所属的CSS class，用于套用思源已存在的样式类。例：<code>b3-chip b3-chip--middle b3-chip--pointer</code>",
     "setting_popupWindow_name": "浮窗触发范围",
     "setting_docLinkCSS_name": "链接样式CSS",
-    "setting_docLinkCSS_desp": "设置后，将同时禁用默认样式",
+    "setting_docLinkCSS_desp": "设置后，将同时禁用默认样式。您也可以在代码片段中使用选择器<code>.og-hierachy-navigate-doc-container span.docLinksWrapper</code>部分覆盖样式",
     "setting_childBoxCSS_name": "子文档容器CSS",
     "setting_parentBoxCSS_name": "父文档容器CSS",
     "setting_siblingBoxCSS_name": "同级文档容器CSS",
@@ -673,7 +693,7 @@ let zh_CN = {
     "setting_childBoxCSS_desp": "如果不修改，请留空。",
     "setting_siblingBoxCSS_desp": "如果不修改，请留空。",
     "setting_linkDivider_name": "禁用图标时文档名前缀",
-    "setting_linkDivider_desp": "在没有图标的文档链接前，加入该前缀。填写示例：<code>◈</code>。",
+    "setting_linkDivider_desp": "在没有图标的文档链接前，加入该前缀。浮窗设置为“仅图标触发”时，前缀也用于触发浮窗。",
     "setting_icon_option_0": "不显示",
     "setting_icon_option_1": "仅自定义",
     "setting_icon_option_2": "显示全部",
@@ -698,8 +718,9 @@ let en_US = {
     "setting_sibling_name": "Display sibling documents",
     "setting_sibling_desp": "When the parent document is a notebook, the sibling document is displayed",
     "setting_docLinkClass_name": "Document link style Class",
-    "setting_docLinkClass_desp": "The CSS class to which the document link belongs is used to apply siyuan's existing style class",
+    "setting_docLinkClass_desp": "The CSS class to which the document link belongs is used to apply siyuan's existing style class. e.g.<code>b3-chip b3-chip--middle b3-chip--pointer</code>",
     "setting_popupWindow_name": "Set popup window trigger range",
+    "setting_popupWindow_desp": "The floating window(popup window) is triggered when the mouse hovers over the area",
     "setting_docLinkCSS_name": "Link style CSS",
     "setting_docLinkCSS_desp": "Once set, the default style is also disabled",
     "setting_childBoxCSS_name": "Subdocument container CSS",
@@ -709,7 +730,7 @@ let en_US = {
     "setting_siblingBoxCSS_desp": "If no modification, please leave it blank ",
     "setting_childBoxCSS_desp": "If no modification, please leave it blank ",
     "setting_linkDivider_name": "Document name prefix",
-    "setting_linkDivider_desp": "This prefix would be added before a document link without an icon",
+    "setting_linkDivider_desp": "This prefix would be added before a document link without an icon. When \"popup window trigger range\" set as \"Icon only\", prefix also used to trigger it.",
     "setting_icon_option_0": "Hide all",
     "setting_icon_option_1": "Custom only",
     "setting_icon_option_2": "Show all",
