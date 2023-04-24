@@ -2,7 +2,7 @@
 
 > This document was translated by Google Translate without manual checking. The author cannot guarantee the accuracy of the translation results. And this document does not express the author's attitude or position.
 
-> Current Version：v0.1.1 New: Set item configuration; Improved: Default style;
+> Current Version：v0.1.1 New: Set item configuration; Improved: Default style;Fixed: wrongly display after quickly switching tab; Fixed: Option 'transfer reference' cannot be displayed.
 
 Add parent and children documents links under the document title.
 

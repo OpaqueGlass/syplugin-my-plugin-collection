@@ -2,7 +2,7 @@
 
 [English](https://github.com/OpaqueGlass/syplugin-my-plugin-collection/blob/main/hierarchyNavigate/README_english.md)
 
-> 当前版本：v0.1.1 新增：设置项配置；改进：默认样式；
+> 当前版本：v0.1.1 新增：设置项配置；改进：默认样式；修复：快速切换标签页插入错误的问题；修复：导致选项`转移引用`无法显示；
 
 ### 快速开始
 

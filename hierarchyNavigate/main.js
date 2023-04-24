@@ -362,12 +362,13 @@ async function getSiblingDocuments(docId, parentSqlResult, sqlResult, noParentFl
  * 生成插入文本
  */
 function generateText(parentDoc, childDoc, siblingDoc, docId) {
+    const CONTAINER_STYLE = `padding: 0px 6px;`;
     let htmlElem = document.createElement("div");
     htmlElem.setAttribute("id", "og-hn-heading-docs-container");
     htmlElem.style.fontSize = `${g_setting.fontSize}px`;
     let parentElem = document.createElement("div");
     parentElem.setAttribute("id", CONSTANTS.PARENT_CONTAINER_ID);
-    parentElem.style.padding = "0px 6px";
+    parentElem.style.cssText = CONTAINER_STYLE;
     let parentElemInnerText = `<span class="${CONSTANTS.INDICATOR_CLASS_NAME}">${language["parent_nodes"]}</span>`;
     let parentFlag = false;
     for (let doc of parentDoc) {
@@ -376,7 +377,7 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
     }
     let siblingElem = document.createElement("div");
     siblingElem.setAttribute("id", CONSTANTS.SIBLING_CONTAINER_ID);
-    siblingElem.style.padding = "0px 6px";
+    siblingElem.style.cssText = CONTAINER_STYLE;
     let siblingElemInnerText = `<span class="${CONSTANTS.INDICATOR_CLASS_NAME}">${language["sibling_nodes"]}</span>`;
 
     if (parentFlag) {
@@ -401,7 +402,7 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
     let childElem = document.createElement("div");
     childElem.setAttribute("id", CONSTANTS.CHILD_CONTAINER_ID);
     
-    childElem.style.padding = "0px 6px";
+    childElem.style.cssText = CONTAINER_STYLE;
     let childElemInnerText = `<span class="${CONSTANTS.INDICATOR_CLASS_NAME}">${language["child_nodes"]}</span>`;
     let childFlag = false;
     for (let doc of childDoc) {
@@ -491,9 +492,9 @@ function setAndApply(htmlElem, docId) {
         console.log("SETED_MOBILE");
         return;
     }
-    if (window.document.querySelector(`.layout__wnd--active .protyle.fn__flex-1:not(.fn__none) .protyle-title #og-hn-heading-docs-container`) != null) return;
+    if (window.document.querySelector(`.layout__wnd--active .protyle.fn__flex-1:not(.fn__none) #og-hn-heading-docs-container`) != null) return;
     // if (window.document.querySelector(`.protyle-title[data-node-id="${docId}"] #og-hn-heading-docs-container`) != null) return;
-    window.document.querySelector(`.layout__wnd--active .protyle.fn__flex-1:not(.fn__none) .protyle-title`)?.append(htmlElem);
+    window.document.querySelector(`.layout__wnd--active .protyle.fn__flex-1:not(.fn__none) .protyle-title .protyle-attr`)?.insertAdjacentElement("beforebegin",htmlElem);
     [].forEach.call(window.document.querySelectorAll(`#og-hn-heading-docs-container  span.refLinks`), (elem)=>{
         elem.addEventListener("click", openRefLink);
         elem.style.marginRight = "10px";
@@ -506,7 +507,7 @@ function setStyle() {
     style.setAttribute("id", CONSTANTS.STYLE_ID);
     const defaultLinkStyle = `
     .${CONSTANTS.CONTAINER_CLASS_NAME} span.docLinksWrapper{
-        background-color: var(--b3-protyle-inline-code-background);/*--b3-protyle-code-background  --b3-theme-surface-light*/
+        background-color: var(--b3-protyle-code-background);/*var(--b3-protyle-inline-code-background); --b3-protyle-code-background  --b3-theme-surface-light*/
         color: var(--b3-protyle-inline-code-color);
         line-height: ${g_setting.fontSize + 2}px;
         font-weight: 400;
