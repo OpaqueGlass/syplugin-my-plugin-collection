@@ -294,7 +294,7 @@ async function main(targets) {
     // 获取当前文档id
     const docId = getCurrentDocIdF();
     // 防止重复执行
-    if (window.document.querySelector(`.protyle-title[data-node-id="${docId}"] + #og-hn-heading-docs-container`) != null) return;
+    if (window.document.querySelector(`.protyle-title[data-node-id="${docId}"] #og-hn-heading-docs-container`) != null) return;
     if (docId == null) {
         console.warn("未能读取到打开文档的id");
         return ;
@@ -362,7 +362,7 @@ async function getSiblingDocuments(docId, parentSqlResult, sqlResult, noParentFl
  * 生成插入文本
  */
 function generateText(parentDoc, childDoc, siblingDoc, docId) {
-    const CONTAINER_STYLE = `padding: 0px 6px; margin: 0px 96px;`;
+    const CONTAINER_STYLE = `padding: 0px 6px;`;
     let htmlElem = document.createElement("div");
     htmlElem.setAttribute("id", "og-hn-heading-docs-container");
     htmlElem.style.fontSize = `${g_setting.fontSize}px`;
@@ -494,7 +494,7 @@ function setAndApply(htmlElem, docId) {
     }
     if (window.document.querySelector(`.layout__wnd--active .protyle.fn__flex-1:not(.fn__none) #og-hn-heading-docs-container`) != null) return;
     // if (window.document.querySelector(`.protyle-title[data-node-id="${docId}"] #og-hn-heading-docs-container`) != null) return;
-    window.document.querySelector(`.layout__wnd--active .protyle.fn__flex-1:not(.fn__none) .protyle-title`)?.insertAdjacentElement("afterend",htmlElem);
+    window.document.querySelector(`.layout__wnd--active .protyle.fn__flex-1:not(.fn__none) .protyle-title .protyle-attr`)?.insertAdjacentElement("beforebegin",htmlElem);
     [].forEach.call(window.document.querySelectorAll(`#og-hn-heading-docs-container  span.refLinks`), (elem)=>{
         elem.addEventListener("click", openRefLink);
         elem.style.marginRight = "10px";
