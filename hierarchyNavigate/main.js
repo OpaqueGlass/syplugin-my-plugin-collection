@@ -170,6 +170,22 @@ let g_setting_default = {
     linkDivider: "",
     popupWindow: CONSTANTS.POP_LIMIT,
 };
+
+// debug push
+let g_DEBUG = 0; // 2 写入前台 1 只控制台
+let g_DEBUG_ELEM = null;
+function debugPush(str, ...args) {
+    if (g_DEBUG == 0) return;
+    for (let arg of args) {
+        str += arg;
+    }
+    if (g_DEBUG_ELEM && g_DEBUG > 1) {   
+        g_DEBUG_ELEM.innerText = str;
+    }else{
+        console.log(str);
+    }
+}
+
 class SettingProperty {
     id;
     simpId;
@@ -221,7 +237,7 @@ function setObserver() {
             }
         });
         g_switchTabObserver.observe(window.document.querySelector(".protyle-background[data-node-id]"), {"attributes": true, "attributeFilter": ["data-node-id"]});
-        console.log("MOBILE_LOADED");
+        debugPush("MOBILE_LOADED");
         main();
         return;
     }
@@ -293,8 +309,10 @@ function removeObserver() {
 async function main(targets) {
     // 获取当前文档id
     const docId = getCurrentDocIdF();
+    debugPush(docId);
     // 防止重复执行
     if (window.document.querySelector(`.protyle-title[data-node-id="${docId}"] #og-hn-heading-docs-container`) != null) return;
+    debugPush("main防重复检查已通过");
     if (docId == null) {
         console.warn("未能读取到打开文档的id");
         return ;
@@ -416,6 +434,12 @@ function generateText(parentDoc, childDoc, siblingDoc, docId) {
         childElem.innerHTML = childElemInnerText + language["none"];
         htmlElem.appendChild(childElem);
     }
+    if (g_DEBUG > 1) {
+        let debug = window.document.createElement("div");
+        debug.setAttribute("id", "og-debug");
+        htmlElem.appendChild(debug);
+        g_DEBUG_ELEM = debug;
+    }
     
     parentElem.classList.add(CONSTANTS.CONTAINER_CLASS_NAME);
     siblingElem.classList.add(CONSTANTS.CONTAINER_CLASS_NAME);
@@ -485,11 +509,11 @@ function setAndApply(htmlElem, docId) {
         htmlElem.style.paddingLeft = "24px";
         htmlElem.style.paddingRight = "16px";
         htmlElem.style.paddingTop = "16px";
-        window.document.querySelector(`.fn__flex-column .protyle-background[data-node-id="${docId}"]`).insertAdjacentElement("afterend", htmlElem);
+        window.document.querySelector(`.protyle-background[data-node-id]`).insertAdjacentElement("afterend", htmlElem);
         [].forEach.call(window.document.querySelectorAll(`#og-hn-heading-docs-container span.refLinks`), (elem)=>{
             elem.addEventListener("click", openRefLink);
         });
-        console.log("SETED_MOBILE");
+        debugPush("安卓端写入完成", docId);
         return;
     }
     if (window.document.querySelector(`.layout__wnd--active .protyle.fn__flex-1:not(.fn__none) #og-hn-heading-docs-container`) != null) return;
@@ -624,6 +648,9 @@ async function listDocsByPath({path, notebook = undefined, sort = undefined, max
 function getCurrentDocIdF() {
     let thisDocId;
     thisDocId = window.top.document.querySelector(".layout__wnd--active .protyle.fn__flex-1:not(.fn__none) .protyle-background")?.getAttribute("data-node-id");
+    if (!thisDocId) {
+        thisDocId = window.top.document.querySelector(".protyle-breadcrumb .protyle-breadcrumb__item .popover__block[data-id]")?.getAttribute("data-id");
+    }
     if (!thisDocId) {
         thisDocId = window.top.document.querySelector(".protyle-background")?.getAttribute("data-node-id");
     }
