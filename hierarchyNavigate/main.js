@@ -648,8 +648,25 @@ async function listDocsByPath({path, notebook = undefined, sort = undefined, max
 function getCurrentDocIdF() {
     let thisDocId;
     thisDocId = window.top.document.querySelector(".layout__wnd--active .protyle.fn__flex-1:not(.fn__none) .protyle-background")?.getAttribute("data-node-id");
-    if (!thisDocId) {
-        thisDocId = window.top.document.querySelector(".protyle-breadcrumb .protyle-breadcrumb__item .popover__block[data-id]")?.getAttribute("data-id");
+    if (!thisDocId && g_isMobile) {
+        // UNSTABLE: 面包屑样式变动将导致此方案错误！
+        try {
+            let temp;
+            temp = window.top.document.querySelector(".protyle-breadcrumb .protyle-breadcrumb__item .popover__block[data-id]")?.getAttribute("data-id");
+            let iconArray = window.top.document.querySelectorAll(".protyle-breadcrumb .protyle-breadcrumb__item .popover__block[data-id]");
+            for (let i = 0; i < iconArray.length; i++) {
+                let iconOne = iconArray[i];
+                if (iconOne.children.length > 0 
+                    && iconOne.children[0].getAttribute("xlink:href") == "#iconFile"){
+                    temp = iconOne.getAttribute("data-id");
+                    break;
+                }
+            }
+            thisDocId = temp;
+        }catch(e){
+            console.error(e);
+            temp = null;
+        }
     }
     if (!thisDocId) {
         thisDocId = window.top.document.querySelector(".protyle-background")?.getAttribute("data-node-id");

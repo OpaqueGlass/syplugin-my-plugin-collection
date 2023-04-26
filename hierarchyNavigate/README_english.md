@@ -13,9 +13,17 @@ Add parent and children documents links under the document title.
 
 #### Other explanation
 
-Compared with the theme HBuilderX-Light in this function implementation, this plugin:
-
 - Maybe available in siyuan Android App (in testing);
+
+- After inserting the navigation part, the document icon on the left side of the title will have some misalignment, which can be solved by "Settings - Appearance - Code Snippet - Add css"
+
+  ```css
+  .protyle-title__icon {
+      top: 40px;
+  }
+  ```
+
+  
 
 ## Feedback bugs
 

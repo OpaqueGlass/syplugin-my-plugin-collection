@@ -2,7 +2,7 @@
 
 [English](https://github.com/OpaqueGlass/syplugin-my-plugin-collection/blob/main/hierarchyNavigate/README_english.md)
 
-> 当前版本：v0.1.1 新增：设置项配置；改进：默认样式；修复：快速切换标签页插入错误的问题；修复：导致选项`转移引用`无法显示；
+> 当前版本：v0.1.1 新增：设置项配置；改进：默认样式；修复：快速切换标签页插入错误的问题；修复：导致选项`转移引用`无法显示；修复：安卓端
 
 ### 快速开始
 
@@ -11,9 +11,19 @@
 
 #### 说明
 
-和HBuilderX-Light在此功能实现上相比，本插件：
+- 已尽力保证在安卓App上可用，如果仍有问题，麻烦反馈，谢谢；
 
-- 在安卓App测试可用（大概）；
+
+
+- 插入导航部分后，标题左侧的文档图标将有一些错位，可通过“设置--外观--代码片段--添加css”解决：
+
+```css
+.protyle-title__icon {
+    top: 40px;
+}
+```
+
+
 
 ## 反馈bug
 
