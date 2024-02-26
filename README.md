@@ -1,5 +1,8 @@
 [English](README_english.md)
 
-这里收录我写的简单插件。
+这里收录我写的简单插件，`new`分支是最近的代码；
 
-由于插件系统变更，文档层级导航项目迁移至[此处](https://github.com/OpaqueGlass/syplugin-hierarchyNavigate)，文档面包屑项目迁移至[此处](https://github.com/OpaqueGlass/syplugin-fakeDocBreadcrumb)。而本合集项目将被归档。
+目前有插件：
+
+- syplugin-pasteAndRename：在空白文档上粘贴后将自动重命名文档；
+
