@@ -1,0 +1,30 @@
+{
+  "name": "syplugin-pasteAndRename",
+  "author": "OpaqueGlass",
+  "url": "https://github.com/OpaqueGlass/syplugin-pasteAndRename",
+  "version": "0.0.0",
+  "displayName": {
+    "default": "pasteRename",
+    "zh_CN": "粘贴，然后重命名",
+    "en_US": "pasteRename"
+  },
+  "description": {
+    "default": "This is a template for slacking off.",
+    "zh_CN": "这是一个快速开发插件的摸鱼模板",
+    "en_US": "This is a template for slacking off."
+  },
+  "readme": {
+    "default": "README.md",
+    "zh_CN": "README_zh_CN.md",
+    "en_US": "README.md"
+  },
+  "i18n": [
+    "zh_CN",
+    "en_US"
+  ],
+  "funding": {
+    "custom": [
+      "https://wj.qq.com/s2/12395364/b69f/"
+    ]
+  }
+}
