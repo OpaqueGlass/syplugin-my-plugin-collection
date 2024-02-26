@@ -22,7 +22,7 @@
   "setting_openToTop_desp": "After enabling this feature, opening a document will no longer navigate to the last edited position.",
 
   "setting_aboutAuthor_name": "About",
-  "setting_aboutAuthor_desp": "Translator: GPT3.5 @ February 23, 2024<br/>Developer: <a target='_blank' href='https://github.com/OpaqueGlass'>OpaqueGlass</a>;<br/>Git repo: <a target='_blank' href='https://github.com/OpaqueGlass/syplugin-doubleClickFileTree'>github</a>;<br/>Released under <a target='_blank' href='https://www.gnu.org/licenses/agpl-3.0.html'>AGPLv3</a> license;",
+  "setting_aboutAuthor_desp": "Translator: GPT3.5 @ February 23, 2024<br/>Developer: <a target='_blank' href='https://github.com/OpaqueGlass'>OpaqueGlass</a>;<br/>Git repo: <a target='_blank' href='https://github.com/OpaqueGlass/syplugin-my-plugin-collection'>github</a>;<br/>Released under <a target='_blank' href='https://www.gnu.org/licenses/agpl-3.0.html'>AGPLv3</a> license;",
 
 
   "setting_experimental": "(Experimental Feature. UNSTABLE. May be removed at any time) ",

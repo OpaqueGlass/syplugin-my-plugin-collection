@@ -1,12 +1,13 @@
 {
     "button_save": "保存",
     "button_cancel": "取消",
-    "setting_panel_title": "双击文档树插件设置",
+    "setting_panel_title": "插件设置",
 
-
+    "setting_maxTitleLength_name": "标题最大长度",
+    "setting_maxTitleLength_desp": "",
 
     "setting_aboutAuthor_name": "关于",
-    "setting_aboutAuthor_desp": "作者：<a target='_blank' href='https://github.com/OpaqueGlass'>OpaqueGlass</a>；<br/>问题反馈&赞助支持：<a target='_blank' href='https://github.com/OpaqueGlass/syplugin-doubleClickFileTree'>github</a> 或 <a target='_blank' href='https://wj.qq.com/s2/12395364/b69f/'>填写问卷</a>；<br/>插件基于<a target='_blank' href='https://www.gnu.org/licenses/agpl-3.0.html'>AGPLv3</a>授权使用；",
+    "setting_aboutAuthor_desp": "作者：<a target='_blank' href='https://github.com/OpaqueGlass'>OpaqueGlass</a>；<br/>问题反馈：<a target='_blank' href='https://github.com/OpaqueGlass/syplugin-my-plugin-collection'>github</a> 打赏支持： <a target='_blank' href='https://wj.qq.com/s2/12395364/b69f/'>填写问卷</a>；<br/>插件基于<a target='_blank' href='https://www.gnu.org/licenses/agpl-3.0.html'>AGPLv3</a>授权使用；",
     
     "setting_experimental": "（⚠实验性功能，不稳定，可能随时被移除；如有问题请反馈）",
     "error_initFailed": "双击文档树（文档树增强）插件初始化失败，如果可以，请向开发者反馈此问题"

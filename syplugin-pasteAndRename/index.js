@@ -52,10 +52,10 @@ let g_writeStorage;
 let token = "";
 let g_isMobile = false;
 let g_setting = {
-   
+    maxTitleLength: null,
 };
 let g_setting_default = {
-    
+    maxTitleLength: 32
 };
 /**
  * Plugin类
@@ -142,6 +142,7 @@ class PasteAndRename extends siyuan.Plugin {
         const settingForm = document.createElement("form");
         settingForm.setAttribute("name", CONSTANTS.PLUGIN_NAME);
         settingForm.innerHTML = generateSettingPanelHTML([
+            new SettingProperty("maxTitleLength", "NUMBER", [0, 512]),
             // 基础设定
             new SettingProperty("aboutAuthor", "HINT", null),
         ]);
@@ -199,8 +200,8 @@ async function pasteHandler(event) {
         const candidateParaList = parsedHtml.querySelectorAll(".h1, .h2, .h3, .h4, .h5, .p");
         for (let i = 0; i < candidateParaList.length; i++) {
             cleanFileName = candidateParaList[i].innerText.replace(regx, '');
-            if (cleanFileName.length > 32){
-                cleanFileName = cleanFileName.substring(0, 32);
+            if (cleanFileName.length > g_setting.maxTitleLength){
+                cleanFileName = cleanFileName.substring(0, g_setting.maxTitleLength);
             }
             if (isValidStr(cleanFileName)) {
                 break;
